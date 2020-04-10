@@ -8,8 +8,9 @@ import {
   Redirect
 } from 'react-router-dom';
 import { imported } from 'react-imported-component/macro';
-import HomePage from 'screens/HomePage';
 import { Button } from 'antd';
+import HomePage from 'screens/HomePage';
+import RoleSelectionScreen from 'screens/RoleSelectionScreen';
 const AuthScreen = imported(() => import('screens/AuthScreen'));
 const EmailNotVerifiedScreen = imported(() => import('screens/EmailNotVerifiedScreen'));
 const AdminDashboardScreen = imported(() => import('screens/AdminDashboardScreen'));
@@ -20,11 +21,12 @@ function AuthAction() {
   const { action } = params;
   if (action === 'email_not_verified') {
     return <EmailNotVerifiedScreen />
-  } else if (
-    action === 'logout'
-  ) {
+  } else if (action === 'logout') {
     window.location.replace(`${process.env.REACT_APP_API_URL}/logout`)
-  } else {
+  } else if (action === 'role_selection') {
+    return <RoleSelectionScreen />
+  }
+  else {
     return <Redirect to={{ pathname: '/'}}/>
   }
 }
