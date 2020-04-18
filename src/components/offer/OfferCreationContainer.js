@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Form, notification } from 'antd';
+import { Button, Form, notification } from 'antd';
 import useAxios, { configure } from 'axios-hooks';
 import axiosInstance from 'services/AxiosInstance';
 import useProviderDataFieldStore from 'components/provider/useProviderDataFieldStore';
@@ -8,31 +8,14 @@ import OfferStore from 'store/Offer';
 import dayjs from 'dayjs';
 import AuthService from 'services/AuthService';
 import UploaderService from 'services/Uploader';
+import { head, reject } from 'lodash';
 
 configure({
     axios: axiosInstance,
 })
 
-const pathwayColumns = [
-    {
-        title: 'ID',
-        dataIndex: 'id',
-        key: 'id',
-    },
-    {
-        title: 'Pathways Name',
-        dataIndex: 'name',
-        key: 'name',
-    },
-    {
-        title: 'Pathways Description',
-        dataIndex: 'description',
-        key: 'description',
-    }
-];
-
-const OfferCreationContainer = (({ className, closeModal }) => {
-    const { id: userId } = AuthService.currentSession;
+const OfferCreationContainer = (({ scopedToProvider = false, closeModal }) => {
+    const { id: userId, provider_id } = AuthService.currentSession;
     const [file, setFile] = useState(null);
     const [ form ] = Form.useForm();
     const [{ data: postData, error: postError, response }, executePost ] = useAxios({
@@ -51,10 +34,24 @@ const OfferCreationContainer = (({ className, closeModal }) => {
     const store = useProviderDataFieldStore();
     const { datafield: datafieldStore, provider: providerStore } = store;
 
+    let providerEntities = Object.values(providerStore.entities);
+
+    if (scopedToProvider) {
+        if (providerEntities.length) {
+            providerEntities = reject(providerEntities, p => {
+                return !(p.id === userId);
+            });
+
+            form.setFieldsValue({
+                provider_id: head(providerEntities).id,
+            });
+        }
+    }
+
     const submit = async () => {
         const values = form.getFieldsValue([
             'category', 'description', 'learn_and_earn',
-            'part_of_day', 'frequency', 'frequency_unit', 'cost', 'credit_unit',
+            'part_of_day', 'frequency', 'frequency_unit', 'cost', 'cost_unit', 'credit_unit',
             'pay_unit', 'length', 'length_unit', 'name', 'start_date', 'provider_id',
             'topics', 'pay', 'credit', 'related_offers', 'prerequisites', 'keywords'
         ]);
@@ -88,6 +85,8 @@ const OfferCreationContainer = (({ className, closeModal }) => {
                     fileable_id: response.data.id,
                     binaryFile: file.originFileObj,
                 });
+
+                // Call store.updateOne and put file url inside offer object
 
                 if (results.success) {
                     notification.success({
@@ -135,19 +134,11 @@ const OfferCreationContainer = (({ className, closeModal }) => {
                         datafields={datafieldStore.entities}
                         providers={providerStore.entities}
                         userId={userId}
+                        providerId={provider_id}
                         file={file}
                         onChangeUpload={onChangeUpload}
+                        scopedToProvider={scopedToProvider}
                     />
-                    <section className="mt-2">
-                        <label className="mb-2 block">
-                            Pathways - Table
-                        </label>
-                        <Table
-                            columns={pathwayColumns}
-                            dataSource={[]}
-                            rowKey="id"
-                        />
-                    </section>
                 </div>
                 <section
                     className="bg-white px-6 pt-5 pb-1 flex justify-center"

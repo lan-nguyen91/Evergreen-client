@@ -14,7 +14,8 @@ configure({
   axios: axiosInstance
 })
 
-export default function OfferContainer({ handleTableData }) {
+export default function OfferContainer({ handleTableData, scopedToProvider = false, provider_id }) {
+
   const history = useHistory();
   const [ modalVisibility, setModalVisibility ] = useState(false);
   const [ selectedOffer, setSelectedOffer ] = useState({});
@@ -33,10 +34,12 @@ export default function OfferContainer({ handleTableData }) {
     error: datafieldError,
   }] = useAxios('/datafields');
 
+  let getOffersUrl = provider_id ? `/offers?scope=with_details&provider_id=${provider_id}`: '/offers?scope=with_details';
+
   const [{
     data: offersData,
     error: offerError,
-  }] = useAxios('/offers?scope=with_details');
+  }] = useAxios(getOffersUrl);
 
   const openAndPopulateUpdateModal = (offer) => {
     setSelectedOffer(offer);
@@ -47,7 +50,13 @@ export default function OfferContainer({ handleTableData }) {
     history.push('/error/500');
   }
 
-  const showData = handleTableData(Object.values(entities));
+  let showData = handleTableData(Object.values(entities));
+  
+  if (scopedToProvider) {
+    showData = showData.filter(p => {
+      return p.provider_id === provider_id;
+    });
+  }
   
   useEffect(() => {
     if (getProviderData) {
@@ -60,7 +69,6 @@ export default function OfferContainer({ handleTableData }) {
       offerStore.addMany(offersData);
     }
   }, [getProviderData, datafieldsData, offersData]);
-
 
   return (
     <Card className="shadow-md rounded-md">
@@ -75,6 +83,7 @@ export default function OfferContainer({ handleTableData }) {
         visible={modalVisibility}
         onCancel={() => setModalVisibility(false)}
         offerStore={offerStore}
+        scopedToProvider={scopedToProvider}
       />
     </Card>
   );

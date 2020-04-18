@@ -17,22 +17,28 @@ const preloadOptions = (data = []) => data.map((item, index) => {
     );
 });
 
-const OfferForm = (props) => {
-    let {
-        datafields = [],
-        providers = {},
-        offers = [],
-        offer = {},
-        onChangeUpload,
-        file,
-        userId = null,
-    } = props;
+export default function OfferForm({
+    datafields = [],
+    providers = {},
+    offers = [],
+    offer = {},
+    onChangeUpload,
+    file,
+    userId = null,
+    providerId = null,
+    scopedToProvider = false,
+}) {
 
     datafields = Object.values(datafields);
 
     useEffect(() => {}, [file]);
 
-    const providersArr = Object.values(providers);
+    const providersArr = Object.values(providers).filter(p => {
+        if (scopedToProvider) {
+            return (p.id === providerId) && !isNil(p.name);
+        }
+        return !isNil(p.name);
+    });
 
     const grouped = groupBy(datafields, property('type'));
     const {
@@ -62,6 +68,12 @@ const OfferForm = (props) => {
         offerOptions = preloadOptions(updatedOffers);
     }
 
+    let costUnitOptions = null;
+
+    if (!isNil(cost_unit) && cost_unit.length) {
+        costUnitOptions = preloadOptions(cost_unit);
+    }
+
     return (
         <Layout>
             <ImageUploadAndNameInputs
@@ -71,7 +83,12 @@ const OfferForm = (props) => {
                 file={file}
             >
                 <Row gutter={8}>
-                    <Col span={15}>
+                    <Col
+                        className={scopedToProvider ? "hidden" : ""}
+                        xs={24}
+                        sm={24}
+                        md={15}
+                    >
                         <div className="flex flex-row">
                             <Form.Item
                                 label="Provider"
@@ -92,7 +109,7 @@ const OfferForm = (props) => {
                                                     key={index.toString()}
                                                     value={p.id}
                                                 >
-                                                    {p.name}
+                                                    {p.name || null}
                                                 </Option>
                                             );
                                         })
@@ -108,7 +125,12 @@ const OfferForm = (props) => {
                             </Button>
                         </div>
                     </Col>
-                    <Col span={9}>
+                    <Col
+                        span={9}
+                        xs={24}
+                        sm={24}
+                        md={scopedToProvider ? 10 : 9}
+                    >
                         <Form.Item
                             label="Generic Offer"
                             name="category"
@@ -133,7 +155,7 @@ const OfferForm = (props) => {
                             className="mb-0 inherit"
                         >
                             <DatePicker
-                                className="w-full"
+                                className="w-full custom-datepicker rounded"
                                 format="MM-DD-YYYY" 
                             />
                         </Form.Item>
@@ -232,7 +254,11 @@ const OfferForm = (props) => {
                 </Form.Item>
             </Row>
             <Row gutter={8}>
-                <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Learn/Earn"
                         name="learn_and_earn"
@@ -248,7 +274,11 @@ const OfferForm = (props) => {
                         </Select>
                     </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Day &#38; Time"
                         name="part_of_day"
@@ -273,7 +303,11 @@ const OfferForm = (props) => {
                         </Select>
                     </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Frequency"
                         name="frequency"
@@ -288,7 +322,11 @@ const OfferForm = (props) => {
                         />
                     </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Frequency Unit"
                         name="frequency_unit"
@@ -315,7 +353,11 @@ const OfferForm = (props) => {
                 </Col>
             </Row>
             <Row gutter={8}>
-                <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Cost"
                         name="cost"
@@ -330,7 +372,11 @@ const OfferForm = (props) => {
                         />
                     </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Cost Unit"
                         name="cost_unit"
@@ -339,7 +385,7 @@ const OfferForm = (props) => {
                         className="mb-0 inherit"
                     >
                         <Select className="rounded custom-select">
-                            {
+                            {/* {
                                 cost_unit.map((unit, index) => {
                                     return (
                                         <Option
@@ -350,11 +396,16 @@ const OfferForm = (props) => {
                                         </Option>
                                     );
                                 })
-                            }
+                            } */}
+                            {costUnitOptions}
                         </Select>
                     </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Credit"
                         name="credit"
@@ -369,7 +420,11 @@ const OfferForm = (props) => {
                         />
                     </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Credit Unit"
                         name="credit_unit"
@@ -396,7 +451,11 @@ const OfferForm = (props) => {
                 </Col>
             </Row>
             <Row gutter={8}>
-                <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Pay"
                         name="pay"
@@ -411,7 +470,11 @@ const OfferForm = (props) => {
                         />
                     </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Pay Unit"
                         name="pay_unit"
@@ -436,7 +499,11 @@ const OfferForm = (props) => {
                         </Select>
                     </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Length"
                         name="length"
@@ -451,7 +518,11 @@ const OfferForm = (props) => {
                         />
                     </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Length Unit"
                         name="length_unit"
@@ -480,5 +551,3 @@ const OfferForm = (props) => {
         </Layout>
     );
 }
-
-export default OfferForm;

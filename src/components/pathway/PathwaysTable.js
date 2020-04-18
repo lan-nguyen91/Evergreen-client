@@ -1,11 +1,12 @@
 import React from 'react';
 import { Table, Tag, Button } from 'antd';
+import { groupBy } from 'lodash';
 import 'scss/antd-overrides.scss';
 
 const { Column } = Table;
 
 function PathwaysTable(props) {
-    const { data, handleUpdateModal } = props;
+    const { data, handleUpdateModal, offers } = props;
     return (
         <Table
             dataSource={data}
@@ -38,6 +39,24 @@ function PathwaysTable(props) {
 					}
 				})}
 			/>
+			<Column
+				className="antd-col"
+				title="Provider"
+				dataIndex="Provider"
+				key="Provider.id"
+				render={(provider, record) => {
+					let children = 'N/A';
+					if (provider) {
+						children = provider.name;
+					}
+					return ({
+						children,
+						props: {
+							"data-title": "Provider",
+						}
+					})
+				}}
+			/>
             <Column
 				className="antd-col"
 				title="Generic Type"
@@ -50,20 +69,41 @@ function PathwaysTable(props) {
 					}
 				})}
 			/>
-            <Column
+      		<Column
 				className="antd-col"
 				title="Offer Groups"
-				dataIndex="groups_of_offers"
-				key="groups_of_offers"
-				render={(text, record) => {
-                    let children = "N/A";
+				dataIndex="GroupsOfOffers"
+				key="index"
+				render={(groups, record) => {
+					let children = 'N/A';
 
-                    if (text && text.length) {
-                        children = text;
-                    }
+					const grouped = groupBy(groups, 'group_name');
+					const groupNames = Object.keys(grouped);
+
+					if (groupNames.length) {
+						children = (
+							<>
+								{
+									groupNames.map((group_name, index) => {
+										const count = grouped[group_name].length;
+										return (
+											<Tag
+												color={index % 2 ? "cyan" : "green"}
+												key={index.toString()}
+											>
+												{
+													`${group_name} ( ${count} )`
+												}
+											</Tag>
+										);
+									}) || "N/A"
+								}
+							</>
+						);
+					}
 
                     return {
-                        children: children,
+                        children,
                         props: {
                             "data-title": "Offer Groups",
                         }
@@ -75,30 +115,38 @@ function PathwaysTable(props) {
 				title="Topics"
 				dataIndex="DataFields"
 				key="DataFields"
-				render={(datafields = [], record) => ({
-					children: (
-                        <>
-                            {
-                                datafields.map((datafield, index) => {
-                                    if (datafield.type !== 'topic') {
-                                        return null;
-                                    }
-                                    return (
-                                        <Tag
-                                            color={index % 2 ? "blue" : "orange"}
-                                            key={index.toString()}
-                                        >
-                                            { datafield.name }
-                                        </Tag>
-                                    );
-                                }) || "N/A"
-                            }
-                        </>
-                    ),
-					props: {
-						"data-title": "Topics",
+				render={(datafields = [], record) => {
+					let children = 'N/A';
+
+					if (datafields.length) {
+						children = (
+							<>
+								{
+									datafields.map((datafield, index) => {
+										if (datafield.type !== 'topic') {
+											return null;
+										}
+										return (
+											<Tag
+												color={index % 2 ? "blue" : "orange"}
+												key={index.toString()}
+											>
+												{ datafield.name }
+											</Tag>
+										);
+									}) || "N/A"
+								}
+							</>
+						);
 					}
-				})}
+
+					return {
+						children,
+						props: {
+							"data-title": "Topics",
+						}
+					}
+				}}
 			/>
             <Column
 				className="antd-col"

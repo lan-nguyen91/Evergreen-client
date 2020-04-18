@@ -48,12 +48,16 @@ function OffersTable(props) {
 				dataIndex="category"
 				key="category"
 				render={
-                    id => {
-                        if (!datafields[id]) {
-                            return null;
-                        }
-                        return datafields[id].name;
-                    }
+					(id) => {
+						let name = null;
+						if (datafields[id]) {
+							name = datafields[id].name;
+						}
+						return {
+							children: name,
+							props: { "data-title": "Category" }
+						}
+					}
                 }
 			/>
             <Column
@@ -62,12 +66,16 @@ function OffersTable(props) {
 				dataIndex="provider_id"
 				key="provider_id"
 				render={
-                    id => {
-                        if (providers[id]) {
-                            return providers[id].name;
-                        }
-                        return null;
-                    }
+					(id) => {
+						let name = 'N/A';
+						if (providers[id]) {
+							name = providers[id].name;
+						}
+						return {
+							children: name,
+							props: { "data-title": "Provider" }
+						}
+					}
                 }
 			/>
             <Column
@@ -75,30 +83,39 @@ function OffersTable(props) {
 				title="Topics"
 				dataIndex="DataFields"
 				key="DataFields"
-				render={(datafields = [], record) => ({
-					children: (
-                        <>
-                            {
-                                datafields.map((datafield, index) => {
-                                    if (datafield.type !== 'topic') {
-                                        return null;
-                                    }
-                                    return (
-                                        <Tag
-                                            color={index % 2 ? "blue" : "orange"}
-                                            key={index.toString()}
-                                        >
-                                            { datafield.name }
-                                        </Tag>
-                                    );
-                                }) || null
-                            }
-                        </>
-                    ),
-					props: {
-						"data-title": "Topics",
+				render={(datafields = [], record) => {
+					datafields = datafields.filter(d => d.type === 'topic');
+					let children = 'N/A';
+
+					if (datafields.length) {
+						children = (
+							<>
+								{
+									datafields.map((datafield, index) => {
+										if (datafield.type !== 'topic') {
+											return null;
+										}
+										return (
+											<Tag
+												color={index % 2 ? "blue" : "orange"}
+												key={index.toString()}
+											>
+												{ datafield.name }
+											</Tag>
+										);
+									})
+								}
+							</>
+						);
 					}
-				})}
+
+					return {
+						children,
+						props: {
+							"data-title": "Topics",
+						}
+					}
+				}}
 			/>
             <Column
 				className="antd-col"
@@ -107,7 +124,10 @@ function OffersTable(props) {
 				key="start_date"
 				render={
                     date => {
-                        return dayjs(date).format('MMM DD, YYYY');
+						return {
+							children: dayjs(date).format('MMM DD, YYYY'),
+							props: { "data-title": "Start Date" }
+						}
                     }
                 }
 			/>

@@ -1,37 +1,29 @@
 import React, { Component } from 'react';
+import {reactLocalStorage} from 'reactjs-localstorage';
+import AuthService from 'services/AuthService';
 import {
   BrowserRouter as Router,
   Route,
   Switch,
   Link,
-  useParams,
-  Redirect
 } from 'react-router-dom';
 import { imported } from 'react-imported-component/macro';
 import { Button } from 'antd';
 import HomePage from 'screens/HomePage';
-import RoleSelectionScreen from 'screens/RoleSelectionScreen';
 const AuthScreen = imported(() => import('screens/AuthScreen'));
-const EmailNotVerifiedScreen = imported(() => import('screens/EmailNotVerifiedScreen'));
 const AdminDashboardScreen = imported(() => import('screens/AdminDashboardScreen'));
+const ProviderDashboardScreen = imported(() => import('screens/ProviderDashboardScreen'));
 const Result = imported(() => import('antd/lib/result'));
 
-function AuthAction() {
-  const params = useParams();
-  const { action } = params;
-  if (action === 'email_not_verified') {
-    return <EmailNotVerifiedScreen />
-  } else if (action === 'logout') {
-    window.location.replace(`${process.env.REACT_APP_API_URL}/logout`)
-  } else if (action === 'role_selection') {
-    return <RoleSelectionScreen />
-  }
-  else {
-    return <Redirect to={{ pathname: '/'}}/>
-  }
-}
-
 class App extends Component {
+  componentDidMount() {
+    const currentSession = reactLocalStorage.getObject('currentSession');
+    if (currentSession) {
+      AuthService.setCurrentSession(currentSession);
+    } else {
+      window.location.replace(`/`)
+    }
+  }
   render() {
     return (
       <Router>
@@ -42,15 +34,9 @@ class App extends Component {
             component={HomePage}
           />
           <Route
-            exact
-            path="/auth"
-            component={AuthScreen}
-          />
-          <Route
-            exact
             path="/auth/:action"
             component={props => {
-              return <AuthAction />;
+              return <AuthScreen />;
             }}
           />
           <Route
@@ -59,7 +45,7 @@ class App extends Component {
           />
           <Route
             path="/provider/:id"
-            children={() => (<div>test</div>)}
+            component={ProviderDashboardScreen}
           />
           <Route
             exact

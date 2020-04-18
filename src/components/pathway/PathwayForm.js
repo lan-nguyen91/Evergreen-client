@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
-import { Layout, Form, Input, Row, Col, Select, Button, DatePicker } from 'antd';
+import React from 'react';
+import {
+    Layout, Form, Input, Row,
+    Col, Select, DatePicker,
+} from 'antd';
 import TitleDivider from 'components/TitleDivider';
 import { ImageUploadAndNameInputs } from 'components/shared';
-import { groupBy, property, isNil, snakeCase } from 'lodash';
+import { groupBy, property, isNil, head } from 'lodash';
 import 'scss/antd-overrides.scss';
+import OfferGroupTable from './OfferGroupTable';
 
 const { Option } = Select;
 
@@ -18,43 +22,17 @@ const preloadOptions = (data = []) => data.map((item, index) => {
     );
 });
 
-const PathwayForm = (props) => {
-    let { datafields = [], offers = [], groupsOfOffers = [], setGroupsOfOffers } = props;
-    const [ groupNameString, setGroupNameString ] = useState('');
-    // const [ groupsOfOffers, setGroupsOfOffers ] = useState([]);
+export default function PathwayForm({
+    datafields = [],
+    groupsOfOffers = [], setGroupsOfOffers,
+    userId = null, file, onChangeUpload,
+    pathway,
+    providers, scopedToProvider = false,
+}) {
+
     datafields = Object.values(datafields);
 
-    const handleGroupName = (e) => {
-        return setGroupNameString(e.target.value);
-    }
-
-    const addGroupName = () => {
-        if (!groupNameString.length) {
-            return;
-        }
-        if (groupsOfOffers.some((group) => {
-            return (group.name === groupNameString) || (group.inputName === snakeCase(groupNameString.toLowerCase()));
-        })) {
-            return;
-        }
-
-        let inputName = groupNameString;
-        inputName = inputName.toLowerCase();
-        inputName = snakeCase(inputName);
-
-        const updateGroupsOfOffers = [
-            ...groupsOfOffers,
-            {
-                name: groupNameString,
-                inputName,
-            }
-        ];
-
-        setGroupsOfOffers(updateGroupsOfOffers);
-    }
-
     const grouped = groupBy(datafields, property('type'));
-
     const {
         payment_unit = [], length_unit = [], credit_unit = [],
         topic = [], frequency_unit = [],
@@ -73,50 +51,20 @@ const PathwayForm = (props) => {
         ));
     }
 
-    let offerOptions = null;
+    let providerOptions = null;
 
-    if (!isNil(offers) && offers.length) {
-        offerOptions = preloadOptions(offers);
+    if (!isNil(providers) && providers.length) {
+        providerOptions = preloadOptions(providers);
     }
-
-    let offerGroups = null;
-
-    offerGroups = groupsOfOffers.map(({ name, inputName }, index) => {
-        return (
-            <section
-                className="w-full"
-                key={index.toString()}
-            >
-                <div className="w-full flex justify-between">
-                    <label>{name}</label>
-                    <Button
-                        className="rounded-b-none"
-                        type="primary"
-                        size="small"
-                        danger
-                    >
-                        Remove
-                    </Button>
-                </div>
-                <Form.Item
-                    className="w-full"
-                    name={inputName}
-                >
-                    <Select
-                        className="w-full rounded custom-select-rounded-tr-none"
-                        showSearch
-                        mode="multiple"
-                    >
-                        {offerOptions}
-                    </Select>
-                </Form.Item>
-            </section>
-        );
-    });
 
     return (
         <Layout>
-            <ImageUploadAndNameInputs>
+            <ImageUploadAndNameInputs
+                className="mb-2"
+                userId={userId}
+                onChangeUpload={onChangeUpload}
+                file={file}
+            >
                 <Form.Item
                     label="Description"
                     name="description"
@@ -140,7 +88,7 @@ const PathwayForm = (props) => {
                             className="mb-0 inherit"
                         >
                             <DatePicker
-                                className="w-full"
+                                className="w-full custom-datepicker rounded"
                                 placeholder=""
                             />
                         </Form.Item>
@@ -160,35 +108,11 @@ const PathwayForm = (props) => {
             </ImageUploadAndNameInputs>
             <TitleDivider title={"Add Offers Group"} />
             <Row>
-                <Col span={8}>
-                    <Input
-                        className="w-full rounded-l rounded-r-none"
-                        placeholder="Group Name"
-                        name="add-group"
-                        onChange={handleGroupName}
-                    />
-                </Col>
-                <Col type={4}>
-                    <Button
-                        className="rounded-l-none"
-                        type="primary"
-                        onClick={() => addGroupName()}
-                    >
-                        Add Group
-                    </Button>
-                </Col>
-            </Row>
-            <TitleDivider title={"Pathway Offers Groups"} />
-            <Row>
-                {
-                    offerGroups && offerGroups.length
-                        ? offerGroups
-                        : (
-                            <p className="mx-auto p-4 border-2 bg-gray-400 font-bold text-gray-600 border-dashed border-gray-500 w-4/5 text-center mb-6 mt-2 rounded">
-                            There are no offer groups, please add one.
-                            </p>
-                        )
-                }
+                <OfferGroupTable 
+                  pathway={pathway}
+                  groupsOfOffers={groupsOfOffers}
+                  setGroupsOfOffers={setGroupsOfOffers}
+                />
                 <div
                     className="w-full mb-4"
                     style={{
@@ -218,7 +142,11 @@ const PathwayForm = (props) => {
                 </Form.Item>
             </Row>
             <Row gutter={8}>
-                <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Learn/Earn"
                         name="learn_and_earn"
@@ -227,14 +155,18 @@ const PathwayForm = (props) => {
                         className="mb-0 inherit"
                         rules={[{ required: true, message: "Please select an option" }]}
                     >
-                        <Select>
+                        <Select className="rounded custom-select">
                             <Option value="learn">Learn</Option>
                             <Option value="earn">Earn</Option>
                             <Option value="both">Learn and Earn</Option>
                         </Select>
                     </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Generic Type"
                         name="type"
@@ -246,7 +178,11 @@ const PathwayForm = (props) => {
                         <Input className="rounded" />
                     </Form.Item>
                 </Col>
-                <Col span={12}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={12}
+                >
                     <Form.Item
                         label="Earnings"
                         name="earnings"
@@ -254,12 +190,16 @@ const PathwayForm = (props) => {
                         colon={false}
                         className="mb-0 inherit"
                     >
-                        <Input className="rouned" />
+                        <Input className="rounded" />
                     </Form.Item>
                 </Col>
             </Row>
             <Row gutter={8}>
-            <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Length"
                         name="length"
@@ -274,7 +214,11 @@ const PathwayForm = (props) => {
                         />
                     </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Length Unit"
                         name="length_unit"
@@ -299,7 +243,11 @@ const PathwayForm = (props) => {
                         </Select>
                     </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Frequency"
                         name="frequency"
@@ -313,7 +261,11 @@ const PathwayForm = (props) => {
                         />
                     </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Frequency Unit"
                         name="frequency_unit"
@@ -339,7 +291,11 @@ const PathwayForm = (props) => {
                 </Col>
             </Row>
             <Row gutter={8}>
-                <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Credit"
                         name="credit"
@@ -354,7 +310,11 @@ const PathwayForm = (props) => {
                         />
                     </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Credit Unit"
                         name="credit_unit"
@@ -379,7 +339,11 @@ const PathwayForm = (props) => {
                         </Select>
                     </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Pay"
                         name="pay"
@@ -394,7 +358,11 @@ const PathwayForm = (props) => {
                         />
                     </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col
+                    xs={24}
+                    sm={24}
+                    md={6}
+                >
                     <Form.Item
                         label="Pay Unit"
                         name="pay_unit"
@@ -420,19 +388,44 @@ const PathwayForm = (props) => {
                     </Form.Item>
                 </Col>
             </Row>
-            <Col span={12}>
-                <Form.Item
-                    label="Outlook"
-                    name="outlook"
-                    labelAlign={"left"}
-                    colon={false}
-                    className="mb-0 inherit"
+            <Row gutter={8}>
+                <Col span={12}>
+                    <Form.Item
+                        label="Outlook"
+                        name="outlook"
+                        labelAlign={"left"}
+                        colon={false}
+                        className="mb-0 inherit"
+                    >
+                        <Input className="rounded" />
+                    </Form.Item>
+                </Col>
+                <Col
+                    span={12}
+                    className={scopedToProvider ? "hidden" : ""}
                 >
-                    <Input className="rounded" />
-                </Form.Item>
-            </Col>
+                    <Form.Item
+                        label="Provider"
+                        name="provider_id"
+                        labelAlign={"left"}
+                        colon={false}
+                        className="mb-0 inherit flex-col w-full"
+                    >
+                        <Select
+                            className={`custom-select-rounded-l-r-none`}
+                            showSearch
+                            defaultValue={
+                                scopedToProvider && providers && providers.length
+                                    ? head(providers).id
+                                    : null
+                            }
+                            name="provider_id"
+                        >
+                            {providerOptions}
+                        </Select>
+                    </Form.Item>
+                </Col>
+            </Row>
         </Layout>
     );
 };
-
-export default PathwayForm;

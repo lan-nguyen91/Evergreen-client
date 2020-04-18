@@ -3,20 +3,32 @@ import { Button, Form, notification } from 'antd';
 import useAxios, { configure } from 'axios-hooks';
 import axiosInstance from 'services/AxiosInstance';
 import PathwayForm from 'components/pathway/PathwayForm';
-import DataFieldStore from 'store/DataField';
 import PathwayStore from 'store/Pathway';
 import dayjs from 'dayjs';
+import { reject, head, map } from 'lodash';
 import OfferStore from 'store/Offer';
+import AuthService from 'services/AuthService';
+import UploaderService from 'services/Uploader';
+import useProviderDataFieldStore from 'components/provider/useProviderDataFieldStore';
 
 configure({
     axios: axiosInstance,
 })
 
-const PathwayCreationContainer = (({ className, closeModal }) => {
+const PathwayCreationContainer = (({ scopedToProvider = false, closeModal }) => {
+    const { id: userId, provider_id } = AuthService.currentSession;
+    const [file, setFile] = useState(null);
     const [ groupsOfOffers, setGroupsOfOffers ] = useState([]);
     const [ form ] = Form.useForm();
     const pathwayStore = PathwayStore.useContainer();
     const offerStore = OfferStore.useContainer();
+
+    const onChangeUpload = (e) => {
+        const { file } = e;
+        if (file) {
+            setFile(file);
+        }
+    }
 
     const [{
         data: getDataFields,
@@ -25,30 +37,26 @@ const PathwayCreationContainer = (({ className, closeModal }) => {
     const [{
         data: getOffers,
     }] = useAxios('/offers');
+
+    const [{
+        data: getProviders,
+    }] = useAxios('/providers');
     
     const [{ data: postData, error: postError, response }, executePost ] = useAxios({
         url: '/pathways',
         method: 'POST'
     }, { manual: true });
 
-    const datafieldStore = DataFieldStore.useContainer();
+    const store = useProviderDataFieldStore();
+    const { datafield: datafieldStore, provider: providerStore } = store;
 
     const submit = async () => {
-        const groups_of_offers = groupsOfOffers.map(({ name, inputName}) => {
-            const value = form.getFieldValue(inputName);
-            return {
-                name,
-                inputName,
-                offers: value,
-            }
-        });
-
         const values = form.getFieldsValue([
             'description', 'learn_and_earn', 'frequency',
             'frequency_unit', 'credit_unit', 'pay_unit',
             'length', 'length_unit', 'name', 'start_date',
             'topics', 'pay', 'credit', 'outlook', 'earnings',
-            'type'
+            'type', 'keywords', 'provider_id'
         ]);
 
         const {
@@ -61,6 +69,12 @@ const PathwayCreationContainer = (({ className, closeModal }) => {
             credit_unit && pay && pay_unit && length && length_unit && name
             && type
         ) {
+            let groups_of_offers = map(groupsOfOffers, g => {
+              return {
+                group_name: g.group_name,
+                offer_ids: g.removed ? [] : map(g.offers, 'offer_id')
+              }
+            });
             const response = await executePost({
                 data: {
                     ...values,
@@ -69,10 +83,42 @@ const PathwayCreationContainer = (({ className, closeModal }) => {
                 }
             });
 
+            if (response.data && file && userId) {
+                const { name, type } = file;
+                const results = await UploaderService.upload({
+                    name,
+                    mime_type: type,
+                    uploaded_by_user_id: userId,
+                    fileable_type: 'pathway',
+                    fileable_id: response.data.id,
+                    binaryFile: file.originFileObj,
+                });
+
+                if (results.success) {
+                    notification.success({
+                        message: 'Success',
+                        description: 'Image is uploaded'
+                    })
+                }
+            }
+
             if (response && response.status === 201) {
                 form.resetFields();
                 closeModal();
             }
+        }
+    }
+    let providerEntities = Object.values(providerStore.entities);
+
+    if (scopedToProvider) {
+        if (providerEntities.length) {
+            providerEntities = reject(providerEntities, p => {
+                return !(p.id === provider_id);
+            });
+
+            form.setFieldsValue({
+                provider_id: head(providerEntities).id,
+            });
         }
     }
 
@@ -99,7 +145,10 @@ const PathwayCreationContainer = (({ className, closeModal }) => {
         if (getOffers) {
             offerStore.addMany(getOffers);
         }
-    }, [getDataFields, response, postError])
+        if (getProviders) {
+            providerStore.addMany(getProviders);
+        }
+    }, [getDataFields, response, postError, getProviders, scopedToProvider])
 
     return (
         <div>
@@ -113,6 +162,11 @@ const PathwayCreationContainer = (({ className, closeModal }) => {
                         offers={Object.values(offerStore.entities)}
                         groupsOfOffers={groupsOfOffers}
                         setGroupsOfOffers={setGroupsOfOffers}
+                        userId={userId}
+                        onChangeUpload={onChangeUpload}
+                        file={file}
+                        providers={providerEntities}
+                        scopedToProvider={true}
                     />
                 </div>
                 <section

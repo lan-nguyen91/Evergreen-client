@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, Form, Button, notification } from 'antd';
 import useAxios, { configure } from 'axios-hooks';
 import axiosInstance from 'services/AxiosInstance';
@@ -7,27 +7,54 @@ import PathwayForm from 'components/pathway/PathwayForm';
 import dayjs from 'dayjs';
 import 'scss/antd-overrides.scss';
 import moment from 'moment';
-import { groupBy, isNil } from 'lodash';
+import {
+    groupBy, isNil, orderBy,
+    map, head, reject,
+} from 'lodash';
+import AuthService from 'services/AuthService';
+import UploaderService from 'services/Uploader';
+import OfferStore from 'store/Offer';
 
 configure({
   axios: axiosInstance
 });
 
-export default function PathwayUpdateModal(props) {
-    const { pathway, onCancel, visible, pathwayStore } = props;
+export default function PathwayUpdateModal({
+    pathway, onCancel, visible,
+    pathwayStore, scopedToProvider, providers
+}) {
+    const { id: userId, provider_id } = AuthService.currentSession;
+    const [file, setFile] = useState(null);
+    const [ groupsOfOffers, setGroupsOfOffers ] = useState([]);
+
     const [ form ] = Form.useForm();
     const datafieldStore = DataFieldStore.useContainer();
-    const [{ data: putData, error: putError, response }, executePut ] = useAxios({
+    const offerStore = OfferStore.useContainer();
+    const [{ data: putData, error: putError }, executePut ] = useAxios({
         method: 'PUT'
     }, { manual: true });
 
+    const onChangeUpload = (e) => {
+        const { file } = e;
+        if (file) {
+            setFile(file);
+        }
+    }
+
     const submitUpdate = async () => {
+        let groups_of_offers = map(groupsOfOffers, g => {
+          return {
+            group_name: g.group_name,
+            offer_ids: g.removed ? [] : map(g.offers, 'offer_id')
+          }
+        });
+
         const values = form.getFieldsValue([
             'description', 'learn_and_earn', 'frequency',
             'frequency_unit', 'credit_unit', 'pay_unit',
             'length', 'length_unit', 'name', 'start_date',
             'topics', 'pay', 'credit', 'outlook', 'earnings',
-            'type', 'keywords'
+            'type', 'keywords', 'provider_id'
         ]);
 
         const {
@@ -44,16 +71,40 @@ export default function PathwayUpdateModal(props) {
                 url: `/pathways/${pathway.id}`,
                 data: {
                     ...values,
+                    groups_of_offers,
                     start_date: dayjs(start_date).toISOString() || null,
                     updatedAt: new dayjs().toISOString()
                 }
             });
 
+            if (response && response.data) {
+                pathwayStore.updateOne(response.data);
+            }
+
+            if (response.data && file && userId) {
+                const { name, type } = file;
+                const results = await UploaderService.upload({
+                    name,
+                    mime_type: type,
+                    uploaded_by_user_id: userId,
+                    fileable_type: 'pathway',
+                    fileable_id: response.data.id,
+                    binaryFile: file.originFileObj,
+                });
+
+                if (results.success) {
+                    notification.success({
+                        message: 'Success',
+                        description: 'Image is uploaded'
+                    })
+                }
+            }
+
             if (response && response.status === 200) {
                 onCancel();
                 notification.success({
                     message: response.status,
-                    description: 'Successfully updated offer'
+                    description: 'Successfully updated pathway'
                 })
             }
         }
@@ -75,23 +126,9 @@ export default function PathwayUpdateModal(props) {
 
     function populateFields(p, formInstance) {
         formInstance.setFieldsValue({
-            name: p.name,
-            description: p.description,
-            learn_and_earn: p.learn_and_earn,
-            frequency: p.frequency,
-            frequency_unit: p.frequency_unit,
-            credit: p.credit,
-            credit_unit: p.credit_unit,
-            pay: p.pay,
-            pay_unit: p.pay_unit,
-            length: p.length,
-            length_unit: p.length_unit,
+            ...p,
             start_date: moment(p.start_date),
             topics: myTopics,
-            outlook: p.outlook,
-            earnings: p.earnings,
-            keywords: p.keywords,
-            type: p.type
         });
     }
 
@@ -103,24 +140,51 @@ export default function PathwayUpdateModal(props) {
                 description: statusText,
             });
         }
-        if (form) {
+        if (pathway) {
             populateFields(pathway, form);
         }
-        if (response && response.status === 200) {
-            pathwayStore.updateOne(putData);
+        if (pathway.Files) {
+            const orderedFiles = orderBy(pathway.Files, ['fileable_type', 'createdAt'], ['desc', 'desc']);
+            for (let i = 0; i < orderedFiles.length; i++) {
+                if (!orderedFiles[i]) {
+                    break;
+                }
+
+                if (orderedFiles[i].fileable_type === 'pathway') {
+                    setFile(orderedFiles[i]);
+                    break;
+                }
+            }
         }
-    }, [putData, pathway, putError, response])
+    }, [putData, pathway, putError]);
+
+    let providerEntities = providers;
+
+    if (scopedToProvider) {
+        if (providerEntities.length) {
+            providerEntities = reject(providerEntities, p => {
+                return !(p.id === provider_id);
+            });
+
+            form.setFieldsValue({
+                provider_id: head(providerEntities).id || null,
+            });
+        }
+    }
 
     return (
         <Modal
             forceRender={true}
             className="custom-modal"
-            title={"Update Offer"}
+            title={"Update Pathway"}
             visible={visible}
             width={998}
             bodyStyle={{ backgroundColor: "#f0f2f5", padding: 0 }}
             footer={true}
             onCancel={onCancel}
+            afterClose={() => {
+                setFile(null)
+            }}
         >
             <Form form={form}>
                 <div
@@ -128,7 +192,16 @@ export default function PathwayUpdateModal(props) {
                     style={{ maxHeight: "32rem" }}
                 >
                     <PathwayForm
+                        pathway={pathway}
                         datafields={datafieldStore.entities}
+                        offers={Object.values(offerStore.entities)}
+                        groupsOfOffers={groupsOfOffers}
+                        setGroupsOfOffers={setGroupsOfOffers}
+                        userId={userId}
+                        onChangeUpload={onChangeUpload}
+                        file={file}
+                        providers={providerEntities}
+                        scopedToProvider={true}
                     />
                 </div>
                 <section

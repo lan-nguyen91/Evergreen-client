@@ -13,6 +13,7 @@ import OfferStore from 'store/Offer';
 import PathwayStore from 'store/Pathway';
 import 'scss/antd-overrides.scss';
 import matchSorter from 'match-sorter';
+import EnrolledOfferContainer from 'components/enrollment/EnrolledOfferContainer';
 
 const TopicContainer = imported(() => import('components/topic/TopicContainer'));
 const ProviderTypeContainer = imported(() => import('components/provider/ProviderTypeContainer'));
@@ -142,6 +143,24 @@ export default function AdminDashboardPage(props) {
         );
     }
 
+    if (pathname === '/admin/enrolled_offers') {
+        modalTitle = 'New Offer / Opportunity';
+        HeaderContent = () => (
+            <SearchModalHeader
+                createHandler={openModal}
+                title="Enrolled Offers"
+                buttonTitle="OFFER"
+                handleSearch={search}
+            />
+        );
+        FormContent = (<OfferCreationContainer closeModal={handleCancel} />);
+        MainContent = () => (
+            <EnrolledOfferContainer
+                handleTableData={handleTableDataForSearch}
+            />
+        );
+    }
+
     return (
         <DataFieldStore.Provider>
             <ProviderStore.Provider>
@@ -150,7 +169,7 @@ export default function AdminDashboardPage(props) {
                         <Layout
                             className="w-full flex flex-row bg-gray-300 min-h-full overflow-y-auto"
                         >
-                            <Sidebar pathname={pathname} />
+                            <Sidebar basePath={'/admin'} role={'admin'}/>
                             <Col className="w-full">
                                 <Header className="px-6 bg-white h-12 flex items-center">
                                     <Col span={14}>
