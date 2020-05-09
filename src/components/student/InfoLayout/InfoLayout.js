@@ -11,15 +11,17 @@ import {
 import { faHandshake } from '@fortawesome/free-regular-svg-icons';
 import { reactLocalStorage } from 'reactjs-localstorage';
 import dayjs from 'dayjs';
-import { LearnAndEarnIcons } from 'components/shared';
+import axiosInstance from 'services/AxiosInstance';
+import { LearnAndEarnIcons, UnitTag } from 'components/shared';
 import './info-layout.scss';
-import 'scss/antd-overrides.scss';
+import 'assets/scss/antd-overrides.scss';
 
 export default function ({
   children,
   type = 'offer',
   data = {},
   groupedDataFields,
+  session = {},
 }) {
   const [openCodeInput, setOpenCodeInput] = useState(false);
   const {
@@ -42,29 +44,53 @@ export default function ({
   } = data;
 
   const [form] = Form.useForm();
-  const onApply = async () => {
-    if (type === 'offer') {
-      if (openCodeInput) {
-        try {
-          const { activation_code } = await form.validateFields([
-            'activation_code',
-          ]);
-          if (activation_code.length) {
-            message.success('Success');
-          }
-        } catch (err) {
-          console.error(err);
+  const onEnroll = async () => {
+    if (type === 'offer' && session && session.role === 'student') {
+      const studentId = session.student_id;
+      const offerId = id;
+      try {
+        const response = await axiosInstance.put(
+          `/students/${studentId}/offers/${offerId}/enroll`
+        );
+        if (response.status === 200) {
+          message.success(`You've enrolled in ${data.name}`);
         }
-        return;
-      } else {
-        if (type === 'offer') {
-          reactLocalStorage.set('offer_id', id);
+      } catch (e) {
+        console.error(e);
+        if (e.response.status === 400) {
+          message.error(
+            'There are no enrollments available. Please contact the provider.'
+          );
         }
       }
-    }
-    if (type === 'pathway') {
       return;
     }
+    if (type === 'pathway' && session && session.role === 'student') {
+      const studentId = session.student_id;
+      const pathwayId = id;
+      try {
+        const response = await axiosInstance.post(
+          `/students/${studentId}/pathways/${pathwayId}/enroll`
+        );
+        if (response.status === 200) {
+          message.info(`You''re already enrolled in ${data.name}`);
+        }
+        if (response.status === 201) {
+          message.success(`You've enrolled in ${data.name}`);
+        }
+        return response;
+      } catch (e) {
+        console.error(e);
+      }
+      return;
+    }
+    if (type === 'offer') {
+      reactLocalStorage.set('offer_id', id);
+    }
+    if (type === 'pathway') {
+      reactLocalStorage.set('pathway_id', id);
+    }
+    window.location.replace(`${process.env.REACT_APP_API_URL}/login`);
     return;
   };
 
@@ -89,7 +115,7 @@ export default function ({
   }
 
   return (
-    <div style={{ width: 423 }}>
+    <div className="infoLayout">
       <header className="mx-auto relative" style={{ minHeight: 52 }}>
         <span
           className="block text-white text-center text-lg absolute text-white w-full bottom-0 p-3"
@@ -172,15 +198,10 @@ export default function ({
         <Row className="mt-1 mb-2">
           <Col span={12} className="flex flex-row items-center">
             {type !== 'provider' && length && (
-              <div className="unit-tag mr-2 text-white rounded px-1">
-                {Number(length) || null} {lengthUnit ? lengthUnit.name : null}
-              </div>
+              <UnitTag number={length} unit={lengthUnit} />
             )}
             {type !== 'provider' && frequency && (
-              <div className="unit-tag text-white rounded px-1">
-                {Number(frequency) || null}{' '}
-                {frequencyUnit ? frequencyUnit.name : null}
-              </div>
+              <UnitTag number={frequency} unit={frequencyUnit} />
             )}
             {type === 'provider' && (
               <>
@@ -215,9 +236,9 @@ export default function ({
           <Button
             type="primary"
             className="w-1/2 rounded mx-auto block mt-2"
-            onClick={onApply}
+            onClick={onEnroll}
           >
-            Apply
+            Enroll
           </Button>
         )}
         {type === 'offer' && (
@@ -226,9 +247,9 @@ export default function ({
               <Button
                 type="primary"
                 className="w-1/2 rounded"
-                onClick={onApply}
+                onClick={onEnroll}
               >
-                Apply
+                Enroll
               </Button>
               {openCodeInput && (
                 <Row className={`w-1/2 ${openCodeInput ? 'mt-2' : ''}`}>
